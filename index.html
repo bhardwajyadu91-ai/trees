@@ -5,27 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TreeHeight Pro</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
+        body { margin: 0; font-family: -apple-system, sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
         #camera-container { position: relative; width: 100vw; height: 100vh; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
         /* HUD UI */
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
                display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .crosshair { width: 40px; height: 40px; border: 2px solid #2ecc71; border-radius: 50%; position: relative; }
-        .crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 100%; height: 2px; background: #2ecc71; transform: translate(-50%, -50%); }
-        .horizon { width: 250px; height: 2px; background: rgba(255,255,255,0.4); position: absolute; }
         
-        #readout { position: absolute; top: 40px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; text-align: center; min-width: 200px; }
-        #warning { background: #e74c3c; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: none; color: white; font-weight: bold; }
+        /* The Crosshair - Dynamic Color */
+        #crosshair { 
+            width: 50px; height: 50px; 
+            border: 4px solid #ff4757; /* Default Red */
+            border-radius: 50%; 
+            position: relative; 
+            transition: border-color 0.2s;
+        }
+        #crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 100%; height: 2px; background: currentColor; transform: translate(-50%, -50%); }
+        
+        .horizon { width: 60vw; height: 2px; background: rgba(255,255,255,0.5); position: absolute; transition: transform 0.1s; }
+        
+        #readout { position: absolute; top: 40px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; text-align: center; width: 80%; border: 1px solid #444; }
+        #status-text { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; color: #ff4757; }
 
         #controls { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; pointer-events: auto; }
-        .input-group { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
-        input { width: 60px; padding: 8px; border-radius: 4px; border: none; text-align: center; font-size: 16px; }
+        .input-group { background: rgba(0,0,0,0.7); padding: 12px 20px; border-radius: 30px; display: flex; align-items: center; gap: 10px; border: 1px solid #555; }
+        input { width: 50px; background: transparent; color: white; border: none; border-bottom: 2px solid #2ecc71; text-align: center; font-size: 18px; outline: none; }
         
-        button { padding: 18px 40px; border-radius: 40px; border: none; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s; }
-        #btn-action { background: #2ecc71; width: 80%; }
-        #btn-calib { background: #555; padding: 10px 20px; font-size: 14px; }
+        button { padding: 20px; border-radius: 50px; border: none; color: white; font-weight: bold; font-size: 18px; width: 85%; cursor: pointer; }
+        #btn-action { background: #2ecc71; box-shadow: 0 4px 20px rgba(46, 204, 113, 0.4); }
+        #btn-action:disabled { background: #555; opacity: 0.6; box-shadow: none; }
+        #btn-calib { background: transparent; border: 1px solid #777; width: auto; font-size: 12px; padding: 8px 15px; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -35,22 +45,22 @@
     
     <div id="hud">
         <div id="readout">
-            <div id="status-text" style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Ready</div>
-            <div id="height-res" style="font-size: 1.8em; font-weight: bold; color: #2ecc71;">-- m</div>
-            <div id="dist-res" style="font-size: 0.9em; opacity: 0.7;">Distance: --</div>
+            <div id="status-text">Hold Phone Level</div>
+            <div id="height-res" style="font-size: 2.2em; font-weight: 900; color: #2ecc71;">-- m</div>
+            <div id="dist-res" style="font-size: 1em; opacity: 0.8;">Distance: --</div>
         </div>
 
-        <div id="warning">⚠️ MOVE BACK (Too Steep)</div>
         <div class="horizon" id="horizon-line"></div>
-        <div class="crosshair"></div>
+        <div id="crosshair"></div>
 
         <div id="controls">
             <div class="input-group">
-                <label>Your Eye Height (m):</label>
+                <label>Eye Height:</label>
                 <input type="number" id="eye-height" value="1.6" step="0.1">
+                <span>meters</span>
             </div>
-            <button id="btn-action">Start Camera</button>
-            <button id="btn-calib">Calibrate Zero</button>
+            <button id="btn-action">Start App</button>
+            <button id="btn-calib" onclick="calibrate()">Recalibrate Vertical</button>
         </div>
     </div>
 </div>
@@ -58,131 +68,108 @@
 <script>
     let step = 0; 
     let angleBase = 0, angleTop = 0;
-    let rawPitch = 0, smoothedPitch = 0, calibrationOffset = 0;
-    const filterFactor = 0.15; // Lower = smoother but slower movement
+    let smoothedPitch = 90, smoothedRoll = 0, calibrationOffset = 0;
+    const filter = 0.08; // VERY smooth (0.01 to 1.0)
 
     const video = document.getElementById('video');
     const heightDisp = document.getElementById('height-res');
     const distDisp = document.getElementById('dist-res');
     const statusText = document.getElementById('status-text');
-    const warning = document.getElementById('warning');
+    const crosshair = document.getElementById('crosshair');
     const horizon = document.getElementById('horizon-line');
     const btn = document.getElementById('btn-action');
-    const btnCalib = document.getElementById('btn-calib');
 
-    // 1. Setup Camera
-    async function initCamera() {
+    async function init() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             video.srcObject = stream;
-            btn.innerText = "Aim at BASE & Click";
-            statusText.innerText = "Step 1: Mark the bottom";
-        } catch (err) {
-            alert("Camera access denied or not available.");
-        }
-    }
-
-    // 2. Sensor Handling with Smoothing
-    function requestPermissions() {
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission().then(response => {
-                if (response === 'granted') window.addEventListener('deviceorientation', onOrientation);
-            });
-        } else {
-            window.addEventListener('deviceorientation', onOrientation);
-        }
-        initCamera();
-    }
-
-    function onOrientation(event) {
-        // In Portrait: beta 90 = vertical. We subtract calibration if set.
-        rawPitch = event.beta;
-        let roll = event.gamma;
-
-        // Apply Low-Pass Filter
-        smoothedPitch = (rawPitch * filterFactor) + (smoothedPitch * (1 - filterFactor));
-        
-        let activePitch = smoothedPitch - calibrationOffset;
-
-        // Visual Horizon
-        horizon.style.transform = `rotate(${-roll}deg)`;
-
-        // Sensitivity Warning (If angle is < 40 while aiming at top, accuracy drops)
-        if (step === 1 && (90 - activePitch) > 65) {
-            warning.style.display = 'block';
-        } else {
-            warning.style.display = 'none';
-        }
-        // Check if the phone is held level (within 3 degrees of vertical)
-        if (Math.abs(roll) < 3) {
-            document.querySelector('.crosshair').style.borderColor = "#2ecc71"; // Green - Good
-            statusText.innerText = "Level - Ready to Measure";
-        } else {
-            document.querySelector('.crosshair').style.borderColor = "#f1c40f"; // Yellow - Tilted
-            statusText.innerText = "Level the phone side-to-side";
-        }
-    }
-
-    // 3. Calibration
-    btnCalib.addEventListener('click', () => {
-        calibrationOffset = smoothedPitch - 90; // Sets current position to a perfect 90 deg
-        alert("Calibrated! Phone vertical is now zeroed.");
-    });
-
-    // 4. Main App Logic
-    btn.addEventListener('click', () => {
-        if (step === 0 && !video.srcObject) {
-            requestPermissions();
-            return;
-        }
-
-        let activePitch = smoothedPitch - calibrationOffset;
-
-        if (step === 0) { // Setting Base
-            angleBase = activePitch;
+            
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                const res = await DeviceOrientationEvent.requestPermission();
+                if (res === 'granted') window.addEventListener('deviceorientation', handleMotion);
+            } else {
+                window.addEventListener('deviceorientation', handleMotion);
+            }
+            
             step = 1;
-            btn.innerText = "Aim at TOP & Click";
-            btn.style.background = "#3498db";
-            statusText.innerText = "Step 2: Mark the peak";
-        } 
-        else if (step === 1) { // Setting Top
-            angleTop = activePitch;
-            calculateFinal();
-            step = 2;
-            btn.innerText = "Reset / New Measure";
-            btn.style.background = "#95a5a6";
-            statusText.innerText = "Result";
-        } 
-        else { // Reset
-            step = 0;
-            btn.innerText = "Aim at BASE & Click";
+            updateUI();
+        } catch (e) { alert("Enable camera and motion sensors."); }
+    }
+
+    function handleMotion(e) {
+        // Low Pass Filter for extreme stability
+        smoothedPitch = (e.beta * filter) + (smoothedPitch * (1 - filter));
+        smoothedRoll = (e.gamma * filter) + (smoothedRoll * (1 - filter));
+
+        let currentPitch = smoothedPitch - calibrationOffset;
+        
+        // 1. Rotate Horizon Line
+        horizon.style.transform = `rotate(${-smoothedRoll}deg)`;
+
+        // 2. Check if phone is level (Roll should be near 0)
+        const isLevel = Math.abs(smoothedRoll) < 3.5;
+        
+        if (isLevel) {
+            crosshair.style.borderColor = "#2ecc71"; // Green
+            if (step !== 0) btn.disabled = false;
+            if (step === 1) statusText.innerText = "Level - Aim at BASE";
+            if (step === 2) statusText.innerText = "Level - Aim at TOP";
+        } else {
+            crosshair.style.borderColor = "#ff4757"; // Red
+            btn.disabled = true;
+            statusText.innerText = "Tilt Phone Side-to-Side to Level";
+            statusText.style.color = "#ff4757";
+        }
+        if (isLevel) statusText.style.color = "#2ecc71";
+    }
+
+    function calibrate() {
+        calibrationOffset = smoothedPitch - 90;
+        alert("Vertical calibrated.");
+    }
+
+    function updateUI() {
+        if (step === 1) {
+            btn.innerText = "SET BASE";
             btn.style.background = "#2ecc71";
-            statusText.innerText = "Step 1: Mark the bottom";
+        } else if (step === 2) {
+            btn.innerText = "SET TOP";
+            btn.style.background = "#3498db";
+        } else if (step === 3) {
+            btn.innerText = "RESET";
+            btn.style.background = "#555";
+        }
+    }
+
+    btn.addEventListener('click', () => {
+        if (step === 0) return init();
+
+        let activePitch = smoothedPitch - calibrationOffset;
+
+        if (step === 1) {
+            angleBase = activePitch;
+            step = 2;
+        } else if (step === 2) {
+            angleTop = activePitch;
+            const h_eye = parseFloat(document.getElementById('eye-height').value);
+            
+            // Math: Horizon is 90 deg in beta
+            const thetaBase = (90 - angleBase) * (Math.PI / 180);
+            const thetaTop = (angleTop - 90) * (Math.PI / 180);
+
+            const distance = h_eye / Math.tan(thetaBase);
+            const totalHeight = h_eye + (distance * Math.tan(thetaTop));
+
+            distDisp.innerText = `Distance: ${distance.toFixed(1)}m`;
+            heightDisp.innerText = `${Math.abs(totalHeight).toFixed(2)}m`;
+            step = 3;
+        } else {
+            step = 1;
             heightDisp.innerText = "-- m";
             distDisp.innerText = "Distance: --";
         }
+        updateUI();
     });
-
-    function calculateFinal() {
-        const h_eye = parseFloat(document.getElementById('eye-height').value);
-        
-        // Convert phone pitch to angle-of-elevation from horizon
-        // If phone is vertical (90 deg), elevation is 0.
-        const thetaBase = (90 - angleBase) * (Math.PI / 180);
-        const thetaTop = (angleTop - 90) * (Math.PI / 180);
-
-        // 1. Distance to tree = EyeHeight / tan(thetaBase)
-        const distance = h_eye / Math.tan(thetaBase);
-        
-        // 2. Height above eye = Distance * tan(thetaTop)
-        const h_above = distance * Math.tan(thetaTop);
-        
-        const totalHeight = h_eye + h_above;
-
-        distDisp.innerText = `Distance: ${distance.toFixed(1)}m`;
-        heightDisp.innerText = `${totalHeight.toFixed(2)}m`;
-    }
 </script>
 </body>
 </html>
-
