@@ -125,19 +125,27 @@
         }
     });
     function calculateHeight() {
-        const d = parseFloat(document.getElementById('distance').value);
-        
-        // Convert degrees to radians: rad = deg * (PI / 180)
-        const radBase = angleBase * (Math.PI / 180);
-        const radTop = angleTop * (Math.PI / 180);
+    const d = parseFloat(document.getElementById('distance').value);
+    
+    // Normalize angles: If phone is upright, beta is ~90. 
+    // We want level to be 0, so we subtract 90.
+    const normBase = angleBase - 90;
+    const normTop = angleTop - 90;
 
-        // Formula: Height = Distance * (tan(angleTop) - tan(angleBase))
-        // Note: Using subtraction because of how phone orientation coordinates work
-        const height = d * (Math.tan(radTop) - Math.tan(radBase));
-        
-        heightDisp.innerText = `Height: ${Math.abs(height).toFixed(2)}m`;
-    }
+    // Convert to Radians
+    const radBase = normBase * (Math.PI / 180);
+    const radTop = normTop * (Math.PI / 180);
+
+    // Formula: Height = d * tan(top) - d * tan(base)
+    // tan(top) is usually positive (looking up)
+    // tan(base) is usually negative (looking down)
+    const height = d * (Math.tan(radTop) - Math.tan(radBase));
+    
+    // Use Math.abs to ensure a positive result
+    heightDisp.innerText = `Height: ${Math.abs(height).toFixed(2)}m`;
+}
 </script>
 </body>
 
 </html>
+
