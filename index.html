@@ -3,25 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight PWA</title>
+    <title>TreeHeight Pro</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; }
+        body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
         #camera-container { position: relative; width: 100vw; height: 100vh; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* UI Overlays */
+        /* HUD UI */
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
                display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .crosshair { width: 40px; height: 40px; border: 2px solid #2ecc71; border-radius: 50%; position: relative; }
+        .crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 100%; height: 2px; background: #2ecc71; transform: translate(-50%, -50%); }
+        .horizon { width: 250px; height: 2px; background: rgba(255,255,255,0.4); position: absolute; }
         
-        .crosshair { width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; }
-        .horizon { width: 200px; height: 2px; background: rgba(255,255,255,0.5); position: absolute; }
+        #readout { position: absolute; top: 40px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; text-align: center; min-width: 200px; }
+        #warning { background: #e74c3c; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: none; color: white; font-weight: bold; }
+
+        #controls { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; pointer-events: auto; }
+        .input-group { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        input { width: 60px; padding: 8px; border-radius: 4px; border: none; text-align: center; font-size: 16px; }
         
-        #controls { position: absolute; bottom: 30px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; pointer-events: auto; }
-        input { padding: 12px; border-radius: 8px; border: none; width: 120px; text-align: center; font-size: 16px; }
-        button { padding: 15px 30px; border-radius: 30px; border: none; background: #2ecc71; color: white; font-weight: bold; font-size: 18px; }
-        
-        #warning { background: rgba(231, 76, 60, 0.9); padding: 10px; border-radius: 5px; margin-bottom: 10px; display: none; }
-        #readout { position: absolute; top: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; text-align: center; }
+        button { padding: 18px 40px; border-radius: 40px; border: none; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s; }
+        #btn-action { background: #2ecc71; width: 80%; }
+        #btn-calib { background: #555; padding: 10px 20px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -31,121 +35,145 @@
     
     <div id="hud">
         <div id="readout">
-            <div>Angle: <span id="angle-val">0</span>°</div>
-            <div id="height-res" style="font-size: 1.5em; color: #2ecc71;">Height: --</div>
+            <div id="status-text" style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Ready</div>
+            <div id="height-res" style="font-size: 1.8em; font-weight: bold; color: #2ecc71;">-- m</div>
+            <div id="dist-res" style="font-size: 0.9em; opacity: 0.7;">Distance: --</div>
         </div>
 
-        <div id="warning">⚠️ TOO CLOSE: Move back for accuracy</div>
-        
+        <div id="warning">⚠️ MOVE BACK (Too Steep)</div>
         <div class="horizon" id="horizon-line"></div>
         <div class="crosshair"></div>
 
         <div id="controls">
-            <input type="number" id="distance" placeholder="Dist to Tree (m)" value="10">
-            <button id="btn-action">Measure Base</button>
+            <div class="input-group">
+                <label>Your Eye Height (m):</label>
+                <input type="number" id="eye-height" value="1.6" step="0.1">
+            </div>
+            <button id="btn-action">Start Camera</button>
+            <button id="btn-calib">Calibrate Zero</button>
         </div>
     </div>
 </div>
 
 <script>
-    let step = 0; // 0: Base, 1: Top
-    let angleBase = 0;
-    let angleTop = 0;
-    let currentPitch = 0;
+    let step = 0; 
+    let angleBase = 0, angleTop = 0;
+    let rawPitch = 0, smoothedPitch = 0, calibrationOffset = 0;
+    const filterFactor = 0.15; // Lower = smoother but slower movement
 
     const video = document.getElementById('video');
-    const angleDisp = document.getElementById('angle-val');
     const heightDisp = document.getElementById('height-res');
+    const distDisp = document.getElementById('dist-res');
+    const statusText = document.getElementById('status-text');
     const warning = document.getElementById('warning');
     const horizon = document.getElementById('horizon-line');
     const btn = document.getElementById('btn-action');
+    const btnCalib = document.getElementById('btn-calib');
 
-    // 1. Initialize Camera
+    // 1. Setup Camera
     async function initCamera() {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        video.srcObject = stream;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            btn.innerText = "Aim at BASE & Click";
+            statusText.innerText = "Step 1: Mark the bottom";
+        } catch (err) {
+            alert("Camera access denied or not available.");
+        }
     }
 
-    // 2. Handle Orientation (iOS requires permission)
-    async function requestPermissions() {
+    // 2. Sensor Handling with Smoothing
+    function requestPermissions() {
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+            DeviceOrientationEvent.requestPermission().then(response => {
+                if (response === 'granted') window.addEventListener('deviceorientation', onOrientation);
+            });
         } else {
-            window.addEventListener('deviceorientation', handleOrientation);
+            window.addEventListener('deviceorientation', onOrientation);
         }
         initCamera();
-        btn.innerText = "Set Base Angle";
     }
 
-    function handleOrientation(event) {
-        // Pitch (Beta) is the forward/backward tilt
-        // Roll (Gamma) is the side-to-side tilt
-        currentPitch = event.beta; 
+    function onOrientation(event) {
+        // In Portrait: beta 90 = vertical. We subtract calibration if set.
+        rawPitch = event.beta;
         let roll = event.gamma;
 
-        angleDisp.innerText = Math.round(currentPitch);
+        // Apply Low-Pass Filter
+        smoothedPitch = (rawPitch * filterFactor) + (smoothedPitch * (1 - filterFactor));
         
-        // Visual feedback: Horizon line tilt
+        let activePitch = smoothedPitch - calibrationOffset;
+
+        // Visual Horizon
         horizon.style.transform = `rotate(${-roll}deg)`;
 
-        // Warning Logic: If angle is too steep (> 60 deg)
-        if (currentPitch > 60 || currentPitch < -60) {
+        // Sensitivity Warning (If angle is < 40 while aiming at top, accuracy drops)
+        if (step === 1 && (90 - activePitch) > 65) {
             warning.style.display = 'block';
         } else {
             warning.style.display = 'none';
         }
     }
 
-    // 3. Calculation Logic
-   // 3. Calculation Logic
+    // 3. Calibration
+    btnCalib.addEventListener('click', () => {
+        calibrationOffset = smoothedPitch - 90; // Sets current position to a perfect 90 deg
+        alert("Calibrated! Phone vertical is now zeroed.");
+    });
+
+    // 4. Main App Logic
     btn.addEventListener('click', () => {
-        if (step === 0) {
-            // Start camera and sensors on first click
-            if (!video.srcObject) {
-                requestPermissions();
-                return;
-            }
-            angleBase = currentPitch;
-            btn.innerText = "Set Top Angle";
-            btn.style.background = "#3498db";
+        if (step === 0 && !video.srcObject) {
+            requestPermissions();
+            return;
+        }
+
+        let activePitch = smoothedPitch - calibrationOffset;
+
+        if (step === 0) { // Setting Base
+            angleBase = activePitch;
             step = 1;
-        } else if (step === 1) {
-            angleTop = currentPitch;
-            calculateHeight();
-            btn.innerText = "Reset";
-            btn.style.background = "#95a5a6";
+            btn.innerText = "Aim at TOP & Click";
+            btn.style.background = "#3498db";
+            statusText.innerText = "Step 2: Mark the peak";
+        } 
+        else if (step === 1) { // Setting Top
+            angleTop = activePitch;
+            calculateFinal();
             step = 2;
-        } else {
-            // Reset everything
+            btn.innerText = "Reset / New Measure";
+            btn.style.background = "#95a5a6";
+            statusText.innerText = "Result";
+        } 
+        else { // Reset
             step = 0;
-            btn.innerText = "Set Base Angle";
+            btn.innerText = "Aim at BASE & Click";
             btn.style.background = "#2ecc71";
-            heightDisp.innerText = "Height: --";
+            statusText.innerText = "Step 1: Mark the bottom";
+            heightDisp.innerText = "-- m";
+            distDisp.innerText = "Distance: --";
         }
     });
-    function calculateHeight() {
-    const d = parseFloat(document.getElementById('distance').value);
-    
-    // Normalize angles: If phone is upright, beta is ~90. 
-    // We want level to be 0, so we subtract 90.
-    const normBase = angleBase - 90;
-    const normTop = angleTop - 90;
 
-    // Convert to Radians
-    const radBase = normBase * (Math.PI / 180);
-    const radTop = normTop * (Math.PI / 180);
+    function calculateFinal() {
+        const h_eye = parseFloat(document.getElementById('eye-height').value);
+        
+        // Convert phone pitch to angle-of-elevation from horizon
+        // If phone is vertical (90 deg), elevation is 0.
+        const thetaBase = (90 - angleBase) * (Math.PI / 180);
+        const thetaTop = (angleTop - 90) * (Math.PI / 180);
 
-    // Formula: Height = d * tan(top) - d * tan(base)
-    // tan(top) is usually positive (looking up)
-    // tan(base) is usually negative (looking down)
-    const height = d * (Math.tan(radTop) - Math.tan(radBase));
-    
-    // Use Math.abs to ensure a positive result
-    heightDisp.innerText = `Height: ${Math.abs(height).toFixed(2)}m`;
-}
+        // 1. Distance to tree = EyeHeight / tan(thetaBase)
+        const distance = h_eye / Math.tan(thetaBase);
+        
+        // 2. Height above eye = Distance * tan(thetaTop)
+        const h_above = distance * Math.tan(thetaTop);
+        
+        const totalHeight = h_eye + h_above;
+
+        distDisp.innerText = `Distance: ${distance.toFixed(1)}m`;
+        heightDisp.innerText = `${totalHeight.toFixed(2)}m`;
+    }
 </script>
 </body>
-
 </html>
-
