@@ -113,6 +113,14 @@
         } else {
             warning.style.display = 'none';
         }
+        // Check if the phone is held level (within 3 degrees of vertical)
+        if (Math.abs(roll) < 3) {
+            document.querySelector('.crosshair').style.borderColor = "#2ecc71"; // Green - Good
+            statusText.innerText = "Level - Ready to Measure";
+        } else {
+            document.querySelector('.crosshair').style.borderColor = "#f1c40f"; // Yellow - Tilted
+            statusText.innerText = "Level the phone side-to-side";
+        }
     }
 
     // 3. Calibration
@@ -177,3 +185,4 @@
 </script>
 </body>
 </html>
+
