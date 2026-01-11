@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TreeHeight Pro+</title>
+<title>TreeHeight Pro – Fixed</title>
 
 <style>
 body {
@@ -28,35 +28,20 @@ video {
 }
 
 /* Crosshair */
-#crosshair {
-    position: absolute;
-    inset: 0;
-}
-
-#line-v, #line-h {
+#lineV, #lineH {
     position: absolute;
     background: #2ecc71;
-    opacity: 0.7;
+    opacity: 0.75;
 }
+#lineV { width: 2px; height: 100%; left: 50%; }
+#lineH { height: 2px; width: 100%; top: 50%; }
 
-#line-v {
-    width: 2px;
-    height: 100%;
-    left: 50%;
-}
-
-#line-h {
-    height: 2px;
-    width: 100%;
-    top: 50%;
-}
-
-#dot {
+#centerDot {
     position: absolute;
     width: 14px;
     height: 14px;
-    border-radius: 50%;
     border: 2px solid #2ecc71;
+    border-radius: 50%;
     left: calc(50% - 7px);
     top: calc(50% - 7px);
 }
@@ -66,7 +51,7 @@ video {
     position: absolute;
     width: 300px;
     height: 2px;
-    background: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.6);
     left: calc(50% - 150px);
     top: 50%;
 }
@@ -77,22 +62,14 @@ video {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.65);
+    background: rgba(0,0,0,0.7);
     padding: 12px 18px;
     border-radius: 12px;
     text-align: center;
 }
 
-#angle {
-    font-size: 0.9em;
-    opacity: 0.8;
-}
-
-#height {
-    font-size: 1.8em;
-    font-weight: bold;
-    color: #2ecc71;
-}
+#angle { font-size: 0.9em; opacity: 0.85; }
+#height { font-size: 1.8em; font-weight: bold; color: #2ecc71; }
 
 /* Controls */
 #controls {
@@ -118,6 +95,9 @@ button {
     color: white;
     width: 80%;
 }
+.secondary {
+    background: #555;
+}
 </style>
 </head>
 
@@ -126,44 +106,46 @@ button {
 
 <div id="hud">
     <div id="readout">
-        <div id="status">Ready</div>
-        <div id="angle">Pitch: --°</div>
+        <div id="status">Press START</div>
+        <div id="angle">Elevation: --°</div>
         <div id="height">-- m</div>
     </div>
 
     <div id="horizon"></div>
-
-    <div id="crosshair">
-        <div id="line-v"></div>
-        <div id="line-h"></div>
-        <div id="dot"></div>
-    </div>
+    <div id="lineV"></div>
+    <div id="lineH"></div>
+    <div id="centerDot"></div>
 
     <div id="controls">
         <input id="eyeHeight" type="number" value="1.6" step="0.1">
-        <button id="action">Start</button>
-        <button id="calib" style="background:#555">Calibrate Level</button>
+        <button id="startBtn">START</button>
+        <button id="resetBtn" class="secondary">RESET</button>
+        <button id="calibBtn" class="secondary">CALIBRATE HORIZONTAL</button>
     </div>
 </div>
 
 <script>
-let pitch = 0, roll = 0;
+/* ---------------- STATE ---------------- */
 let smoothPitch = 0;
+let smoothRoll = 0;
 let zeroOffset = 0;
 
 let step = 0;
-let baseAngles = [];
-let topAngles = [];
+let baseAngle = null;
+let topAngle = null;
 
-const FILTER = 0.12;
-const STABLE_SAMPLES = 10;
+const FILTER = 0.15;
+const STABLE_COUNT = 12;
+let samples = [];
 
+/* ---------------- ELEMENTS ---------------- */
 const video = document.getElementById("video");
 const horizon = document.getElementById("horizon");
 const angleUI = document.getElementById("angle");
 const heightUI = document.getElementById("height");
 const statusUI = document.getElementById("status");
 
+/* ---------------- CAMERA ---------------- */
 async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" }
@@ -171,70 +153,91 @@ async function startCamera() {
     video.srcObject = stream;
 }
 
+/* ---------------- ORIENTATION ---------------- */
 function onOrientation(e) {
-    pitch = e.beta;
-    roll = e.gamma;
+    smoothPitch = e.beta * FILTER + smoothPitch * (1 - FILTER);
+    smoothRoll = e.gamma * FILTER + smoothRoll * (1 - FILTER);
 
-    smoothPitch = pitch * FILTER + smoothPitch * (1 - FILTER);
+    const elevation = (90 - smoothPitch) - zeroOffset;
 
-    const effectivePitch = smoothPitch - zeroOffset;
+    horizon.style.transform =
+        `rotate(${-smoothRoll}deg) translateY(${elevation * 2}px)`;
 
-    horizon.style.transform = `rotate(${-roll}deg) translateY(${effectivePitch * 2}px)`;
-    angleUI.textContent = `Pitch: ${effectivePitch.toFixed(1)}°`;
+    angleUI.textContent = `Elevation: ${elevation.toFixed(1)}°`;
 
-    if (step === 1) baseAngles.push(effectivePitch);
-    if (step === 2) topAngles.push(effectivePitch);
+    if (step === 1 || step === 2) {
+        samples.push(elevation);
+        if (samples.length > STABLE_COUNT) samples.shift();
+    }
 }
 
-function stableAverage(arr) {
-    if (arr.length < STABLE_SAMPLES) return null;
-    return arr.slice(-STABLE_SAMPLES).reduce((a,b)=>a+b)/STABLE_SAMPLES;
+/* ---------------- HELPERS ---------------- */
+function stableAverage() {
+    if (samples.length < STABLE_COUNT) return null;
+    return samples.reduce((a,b)=>a+b,0)/samples.length;
 }
 
-document.getElementById("action").onclick = async () => {
+/* ---------------- BUTTONS ---------------- */
+document.getElementById("startBtn").onclick = async () => {
     if (!video.srcObject) {
         await startCamera();
         window.addEventListener("deviceorientation", onOrientation);
-        statusUI.textContent = "Aim at BASE";
+        statusUI.textContent = "Aim at BASE and tap START";
         step = 1;
+        samples = [];
+        return;
+    }
+
+    const avg = stableAverage();
+    if (avg === null) {
+        alert("Hold steady for a moment");
         return;
     }
 
     if (step === 1) {
-        const avg = stableAverage(baseAngles);
-        if (avg === null) return alert("Hold steady...");
-        baseAngles = [];
+        baseAngle = avg;
+        samples = [];
         step = 2;
-        statusUI.textContent = "Aim at TOP";
+        statusUI.textContent = "Aim at TOP and tap START";
     }
     else if (step === 2) {
-        const avgTop = stableAverage(topAngles);
-        if (avgTop === null) return alert("Hold steady...");
-        calculate(avgTop);
-        step = 0;
-        topAngles = [];
+        topAngle = avg;
+        calculateHeight();
+        step = 3;
+        statusUI.textContent = "Result (RESET for new reading)";
     }
 };
 
-document.getElementById("calib").onclick = () => {
-    zeroOffset = smoothPitch;
-    alert("Level calibrated");
+document.getElementById("resetBtn").onclick = () => {
+    step = 1;
+    baseAngle = null;
+    topAngle = null;
+    samples = [];
+    heightUI.textContent = "-- m";
+    statusUI.textContent = "Aim at BASE and tap START";
 };
 
-function calculate(angleTop) {
+document.getElementById("calibBtn").onclick = () => {
+    zeroOffset = (90 - smoothPitch);
+    alert("Horizontal calibrated");
+};
+
+/* ---------------- CALCULATION ---------------- */
+function calculateHeight() {
     const hEye = parseFloat(document.getElementById("eyeHeight").value);
-    const base = stableAverage(baseAngles);
 
-    const θb = (90 - base) * Math.PI/180;
-    const θt = (angleTop - 90) * Math.PI/180;
+    const θb = baseAngle * Math.PI / 180;
+    const θt = topAngle * Math.PI / 180;
 
-    if (θb < 0.2) return alert("Too steep");
+    if (θb >= 0) {
+        alert("Base must be below eye level");
+        return;
+    }
 
-    const d = hEye / Math.tan(θb);
-    const h = hEye + d * Math.tan(θt);
+    const distance = hEye / Math.abs(Math.tan(θb));
+    const height = hEye + distance * Math.tan(θt);
 
-    heightUI.textContent = `${h.toFixed(2)} m`;
-    statusUI.textContent = "Result";
+    heightUI.textContent = `${height.toFixed(2)} m`;
 }
 </script>
 </body>
