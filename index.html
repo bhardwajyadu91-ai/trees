@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight Pro - Samsung Fix</title>
+    <title>TreeHeight Pro Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
@@ -11,24 +11,29 @@
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
         
-        /* Samsung UI Guard: Lifted 120px to avoid bottom nav bar */
-        #ui-panel { position: absolute; bottom: 120px; left: 5%; width: 90%; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 20px; border: 2px solid #2ecc71; pointer-events: auto; }
-        
-        /* BOLD CROSSHAIR - ALWAYS VISIBLE */
+        /* THE CROSSHAIR */
         #center-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 100; }
-        .circle { width: 90px; height: 90px; border: 3px solid #ff4757; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .plus-v { position: absolute; width: 3px; height: 40px; background: #ff4757; }
-        .plus-h { position: absolute; width: 40px; height: 3px; background: #ff4757; }
+        #ch-ring { width: 80px; height: 80px; border: 3px solid #ff4757; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
+        .plus-v { position: absolute; width: 3px; height: 30px; background: #ff4757; }
+        .plus-h { position: absolute; width: 30px; height: 3px; background: #ff4757; }
 
+        /* THE READOUT */
         #readout { position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; }
-        #height-res { font-size: 3em; font-weight: bold; color: #2ecc71; text-shadow: 2px 2px #000; }
+        #height-res { font-size: 3.2em; font-weight: bold; color: #2ecc71; text-shadow: 2px 2px 4px #000; }
+        #status-bar { font-size: 11px; font-weight: bold; color: #3498db; background: rgba(0,0,0,0.6); display: inline-block; padding: 5px 15px; border-radius: 20px; }
+
+        /* THE CONTROL PANEL */
+        #ui-panel { position: absolute; bottom: 110px; left: 5%; width: 90%; background: rgba(15,15,15,0.95); padding: 15px; border-radius: 24px; border: 1px solid #444; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .input-group { display: flex; flex-direction: column; align-items: center; }
+        .input-group label { font-size: 8px; color: #aaa; margin-bottom: 4px; text-transform: uppercase; }
+        input { width: 100%; background: #222; border: 1px solid #2ecc71; color: #2ecc71; text-align: center; padding: 10px 0; border-radius: 8px; font-size: 18px; font-weight: bold; }
         
-        .btn { width: 100%; padding: 18px; border-radius: 12px; border: none; font-weight: bold; color: white; cursor: pointer; margin-top: 10px; font-size: 16px; }
+        .btn { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; color: white; cursor: pointer; margin-top: 8px; font-size: 14px; }
         .btn-blue { background: #3498db; }
-        .btn-green { background: #27ae60; }
-        .btn-red { background: #c0392b; }
-        
-        input { width: 60%; background: #222; border: 2px solid #2ecc71; color: #2ecc71; text-align: center; padding: 12px; border-radius: 8px; font-size: 22px; font-weight: bold; margin: 10px 0; }
+        .btn-green { background: #27ae60; font-size: 16px; border-bottom: 4px solid #1e7e46; }
+        .btn-red { background: #c0392b; font-size: 12px; margin-top: 15px; }
+        .btn-save { background: #555; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -38,7 +43,7 @@
     <canvas id="overlay"></canvas>
     
     <div id="center-ui">
-        <div class="circle" id="ch-ring">
+        <div id="ch-ring">
             <div class="plus-v"></div>
             <div class="plus-h"></div>
         </div>
@@ -46,59 +51,88 @@
 
     <div id="readout">
         <div id="height-res">-- m</div>
-        <div id="status" style="font-size:12px; font-weight:bold;">1. AIM AT TARGET & SET HORIZON</div>
+        <div id="status-bar">1. AIM AT EYE-LEVEL & SET HORIZON</div>
     </div>
 
-    <div id="ui-panel" style="text-align:center;">
-        <label style="font-size: 11px; color: #2ecc71;">DISTANCE (METERS)</label><br>
-        <input type="number" id="dist" value="3">
+    <div id="ui-panel">
+        <div class="grid-3">
+            <div class="input-group">
+                <label>Distance (m)</label>
+                <input type="number" id="dist-val" value="10">
+            </div>
+            <div class="input-group">
+                <label>Slope Angle°</label>
+                <input type="number" id="slope-angle" value="0">
+            </div>
+            <div class="input-group">
+                <label>Eye Ht (m)</label>
+                <input type="number" id="eye-ht" value="1.6">
+            </div>
+        </div>
         
-        <button class="btn btn-blue" onclick="setHorizon()">STEP 1: SET HORIZON</button>
-        <button class="btn btn-green" onclick="markTop()">STEP 2: MARK TOP</button>
-        <button class="btn btn-red" onclick="location.reload()">RESET (READY NEXT)</button>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-blue" onclick="setHorizon()">1. SET HORIZON</button>
+            <button class="btn btn-blue" style="background:#8e44ad" onclick="snapSlope()">SNAP SLOPE</button>
+        </div>
+        
+        <button class="btn btn-green" onclick="calculateHeight()">2. MARK TOP & CALC</button>
+        
+        <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-save" onclick="saveImage()">📸 SAVE PHOTO</button>
+            <button class="btn btn-red" style="margin-top:0;" onclick="resetForNext()">RESET NEXT TREE</button>
+        </div>
     </div>
 </div>
 
 <script>
-    let curPitch = 0, horPitch = 0, isCalibrated = false;
+    let curPitch = 0, horPitch = null, curRoll = 0;
     const video = document.getElementById('video'), canvas = document.getElementById('overlay'), ctx = canvas.getContext('2d');
 
-    async function start() {
+    async function init() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             video.srcObject = stream;
             
             window.addEventListener('deviceorientation', (e) => {
-                // Samsung Fix: Use beta for portrait tilt, but check gamma for levelness
+                // Samsung Vertical/Portrait Orientation
                 curPitch = e.beta; 
-                let roll = e.gamma; 
+                curRoll = e.gamma; 
                 
-                // Toggle crosshair color if phone is held straight (within 5 degrees)
-                const isLevel = Math.abs(roll) < 5;
+                const isLevel = Math.abs(curRoll) < 6;
                 document.getElementById('ch-ring').style.borderColor = isLevel ? "#2ecc71" : "#ff4757";
             }, true);
             
             requestAnimationFrame(draw);
-        } catch (e) { alert("Please allow Camera & Sensors in your browser settings."); }
+        } catch (e) { alert("Please allow Camera and Sensors."); }
     }
 
     function setHorizon() {
-        horPitch = curPitch; // This "Zeros" the sensor to your hand
-        isCalibrated = true;
-        document.getElementById('status').innerText = "HORIZON SET. TILT UP TO TOP.";
-        document.getElementById('status').style.color = "#2ecc71";
+        horPitch = curPitch; 
+        document.getElementById('status-bar').innerText = "HORIZON SET. TILT TO TOP.";
+        document.getElementById('status-bar').style.color = "#2ecc71";
+    }
+
+    function snapSlope() {
+        if (horPitch === null) { alert("Set Horizon first at eye-level!"); return; }
+        // Calculates slope relative to your established eye-level
+        document.getElementById('slope-angle').value = Math.abs(curPitch - horPitch).toFixed(1);
+    }
+
+    function resetForNext() {
+        horPitch = null;
+        document.getElementById('height-res').innerText = "-- m";
+        document.getElementById('status-bar').innerText = "1. AIM AT EYE-LEVEL & SET HORIZON";
+        document.getElementById('status-bar').style.color = "#3498db";
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        if (isCalibrated) {
-            // Samsung sensor difference math
+        if (horPitch !== null) {
             const diff = curPitch - horPitch;
-            // Sensitivity factor (15) moves the triangle 
-            const yPos = (canvas.height / 2) + (diff * 18); 
+            const yPos = (canvas.height / 2) + (diff * 20); 
 
-            ctx.fillStyle = "#3498db";
+            ctx.fillStyle = Math.abs(diff) < 1 ? "#f1c40f" : "#3498db";
             ctx.beginPath();
             ctx.moveTo(canvas.width/2, yPos);
             ctx.lineTo(canvas.width/2 - 25, yPos + 40);
@@ -108,20 +142,33 @@
         requestAnimationFrame(draw);
     }
 
-    function markTop() {
-        if (!isCalibrated) { alert("Click SET HORIZON first!"); return; }
+    function calculateHeight() {
+        if (horPitch === null) return alert("Step 1: Set Horizon first!");
         
-        const distance = parseFloat(document.getElementById('dist').value);
-        const angle = Math.abs(curPitch - horPitch);
+        const slopeDist = parseFloat(document.getElementById('dist-val').value);
+        const groundSlope = parseFloat(document.getElementById('slope-angle').value) * (Math.PI / 180);
+        const eyeHeight = parseFloat(document.getElementById('eye-ht').value);
         
-        // The Math: Height = (Distance * Tan(Angle)) + Eye Height (1.6m)
-        const height = (distance * Math.tan(angle * (Math.PI / 180))) + 1.6;
+        // Step 1: Horizontal distance (accounting for slope)
+        const horizontalDist = slopeDist * Math.cos(groundSlope);
         
-        document.getElementById('height-res').innerText = height.toFixed(2) + " m";
-        document.getElementById('status').innerText = "DONE! HIT RESET FOR NEXT.";
+        // Step 2: Elevation angle
+        const elevationAngle = Math.abs(curPitch - horPitch) * (Math.PI / 180);
+        
+        // Step 3: Total Height = (Horizontal Dist * Tan(Elevation)) + Eye Height
+        const totalHeight = (horizontalDist * Math.tan(elevationAngle)) + eyeHeight;
+        
+        document.getElementById('height-res').innerText = totalHeight.toFixed(2) + " m";
+        document.getElementById('status-bar').innerText = "READING COMPLETE";
     }
 
-    start();
+    function saveImage() {
+        html2canvas(document.querySelector("#capture-area")).then(c => {
+            let a = document.createElement('a'); a.download = 'Tree_Measurement.png'; a.href = c.toDataURL(); a.click();
+        });
+    }
+
+    init();
 </script>
 </body>
 </html>
