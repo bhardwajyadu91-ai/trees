@@ -2,17 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight Pro V6</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TreeHeight Pro V7</title>
     <style>
+        /* Essential for PWA to fill screen correctly */
+        :root { --safe-bottom: env(safe-area-inset-bottom, 20px); }
+
         body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
-        #camera-container { position: relative; width: 100vw; height: 100vh; }
+        #camera-container { position: relative; width: 100vw; height: 100vh; height: -webkit-fill-available; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
                display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* PLUS INSIDE CIRCLE CROSSHAIR */
         #crosshair { 
             width: 80px; height: 80px; border: 2px solid #ff4757; border-radius: 50%; 
             position: relative; transition: 0.2s; color: #ff4757;
@@ -20,28 +22,44 @@
         #crosshair::before { content: ''; position: absolute; top: 10%; left: 50%; width: 2px; height: 80%; background: currentColor; transform: translateX(-50%); }
         #crosshair::after { content: ''; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: currentColor; transform: translateY(-50%); }
         
-        /* Top Readout Board */
-        #readout { position: absolute; top: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 15px; text-align: center; width: 80%; border: 1px solid #444; }
-        #status-text { font-weight: bold; font-size: 1em; color: #ff4757; margin-bottom: 5px; text-transform: uppercase; }
+        #readout { position: absolute; top: 40px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 15px; text-align: center; width: 80%; border: 1px solid #444; }
+        #status-text { font-weight: bold; font-size: 0.9em; color: #ff4757; margin-bottom: 5px; text-transform: uppercase; }
 
-        /* Floating Action Button (FAB) */
+        /* Floating Action Button (FAB) - Moved slightly higher to avoid thumb-strain */
         #main-btn { 
-            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            width: 90px; height: 90px; border-radius: 50%; border: none;
+            position: absolute; right: 20px; top: 55%; transform: translateY(-50%);
+            width: 95px; height: 95px; border-radius: 50%; border: none;
             color: white; font-weight: bold; font-size: 14px; cursor: pointer;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 100; pointer-events: auto;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.6); z-index: 100; pointer-events: auto;
             display: flex; align-items: center; justify-content: center; text-align: center;
             line-height: 1.2; transition: 0.3s;
         }
         .btn-start { background: #3498db; }
-        .btn-measure { background: #2ecc71; }
-        .btn-reset { background: #e67e22; width: 80px !important; height: 80px !important; font-size: 12px !important; }
-        #main-btn:disabled { background: #444 !important; opacity: 0.4; }
+        .btn-measure { background: #2ecc71; border: 3px solid rgba(255,255,255,0.3); }
+        .btn-reset { background: #e67e22; width: 85px !important; height: 85px !important; font-size: 12px !important; }
+        #main-btn:disabled { background: #444 !important; opacity: 0.5; }
 
-        /* Bottom Settings */
-        #settings { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: auto; }
-        .settings-bar { background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; display: flex; gap: 15px; align-items: center; font-size: 14px; }
+        /* Corrected Bottom Settings - Using Safe Area Insets */
+        #settings { 
+            position: absolute; 
+            bottom: calc(var(--safe-bottom) + 20px); 
+            left: 0; width: 100%; 
+            display: flex; flex-direction: column; align-items: center; 
+            pointer-events: auto; 
+        }
+        .settings-bar { 
+            background: rgba(0,0,0,0.85); 
+            padding: 12px 20px; 
+            border-radius: 25px; 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+            font-size: 14px; 
+            border: 1px solid #444;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+        }
         input[type="number"] { width: 45px; background: transparent; color: #2ecc71; border: none; border-bottom: 2px solid #2ecc71; text-align: center; font-size: 16px; outline: none; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2ecc71; }
     </style>
 </head>
 <body>
@@ -53,7 +71,7 @@
         <div id="readout">
             <div id="status-text">Ready</div>
             <div id="height-res" style="font-size: 2.2em; font-weight: bold; color: #2ecc71;">-- m</div>
-            <div id="info-res" style="font-size: 0.9em; opacity: 0.8;">Stand back and start camera</div>
+            <div id="info-res" style="font-size: 0.9em; opacity: 0.9;">Stand back & start camera</div>
         </div>
 
         <div id="crosshair"></div>
@@ -63,17 +81,19 @@
         <div id="settings">
             <div class="settings-bar">
                 <label>Eye Ht (m): <input type="number" id="eye-height" value="1.6" step="0.1"></label>
-                <label><input type="checkbox" id="high-accuracy" checked> Strict Level</label>
+                <label style="display:flex; align-items:center; gap:5px;">
+                    <input type="checkbox" id="high-accuracy" checked> Strict Level
+                </label>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let step = 0; // 0: Start, 1: Base, 2: Top, 3: Result
+    let step = 0; 
     let angleBase = 0, angleTop = 0;
     let smoothedPitch = 0, smoothedRoll = 0;
-    const filter = 0.15; // Smooths the jumpiness
+    const filter = 0.15;
 
     const video = document.getElementById('video');
     const mainBtn = document.getElementById('main-btn');
@@ -85,15 +105,11 @@
 
     async function startApp() {
         try {
-            // Force back camera (environment)
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: { exact: "environment" } }, 
+            const constraints = { 
+                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, 
                 audio: false 
-            }).catch(() => {
-                // Fallback if 'exact' environment fails on some browsers
-                return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            });
-            
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
 
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -104,7 +120,7 @@
             }
             step = 1;
             updateUI();
-        } catch (err) { alert("Camera access denied. Please enable in settings."); }
+        } catch (err) { alert("Camera Error. Please ensure you are on HTTPS and have given permissions."); }
     }
 
     function handleOrientation(e) {
@@ -117,12 +133,12 @@
         if (isLevel) {
             crosshair.style.borderColor = "#2ecc71";
             crosshair.style.color = "#2ecc71";
-            if (step === 1) statusText.innerText = "Level - Mark Bottom";
-            if (step === 2) statusText.innerText = "Level - Mark Peak";
+            if (step === 1) statusText.innerText = "Level - Aim at BOTTOM";
+            if (step === 2) statusText.innerText = "Level - Aim at PEAK";
         } else {
             crosshair.style.borderColor = "#ff4757";
             crosshair.style.color = "#ff4757";
-            statusText.innerText = "Tilt to Level";
+            statusText.innerText = "Tilt side-to-side to Level";
         }
 
         if (step === 1 || step === 2) {
@@ -138,7 +154,7 @@
             mainBtn.innerHTML = "MARK<br>TOP";
             mainBtn.className = "btn-measure";
         } else if (step === 3) {
-            mainBtn.innerHTML = "NEW<br>TREE";
+            mainBtn.innerHTML = "NEW<br>MEASURE";
             mainBtn.className = "btn-reset";
             mainBtn.disabled = false;
         }
@@ -150,7 +166,7 @@
         if (step === 1) {
             angleBase = smoothedPitch;
             step = 2;
-            infoRes.innerText = "Base set. Aim at tree top.";
+            infoRes.innerText = "Base set. Now tilt UP to peak.";
         } else if (step === 2) {
             angleTop = smoothedPitch;
             calculateHeight();
@@ -167,10 +183,9 @@
     function calculateHeight() {
         const h_eye = parseFloat(document.getElementById('eye-height').value);
         
-        // Math using beta (90 is vertical upright)
-        // radBase: Angle from horizon down to floor
+        // Beta 90 is vertical. 
+        // We use Math.abs to handle different phone orientations consistently
         const radBase = (90 - angleBase) * (Math.PI / 180);
-        // radTop: Angle from horizon up to peak
         const radTop = (angleTop - 90) * (Math.PI / 180);
 
         const distance = h_eye / Math.tan(radBase);
@@ -179,11 +194,11 @@
 
         if (distance < 0 || isNaN(total) || !isFinite(total)) {
             heightRes.innerText = "Error";
-            infoRes.innerText = "Stand further back & keep phone upright.";
+            infoRes.innerText = "Tip: Ensure you tilt DOWN for base mark.";
         } else {
             heightRes.innerText = total.toFixed(2) + " m";
             infoRes.innerText = "Distance: " + distance.toFixed(1) + "m";
-            statusText.innerText = "Done";
+            statusText.innerText = "Measurement Done";
         }
     }
 </script>
