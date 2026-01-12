@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight Pro V5</title>
+    <title>TreeHeight Pro V6</title>
     <style>
         body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
         #camera-container { position: relative; width: 100vw; height: 100vh; }
@@ -12,6 +12,7 @@
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
                display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
+        /* PLUS INSIDE CIRCLE CROSSHAIR */
         #crosshair { 
             width: 80px; height: 80px; border: 2px solid #ff4757; border-radius: 50%; 
             position: relative; transition: 0.2s; color: #ff4757;
@@ -19,22 +20,28 @@
         #crosshair::before { content: ''; position: absolute; top: 10%; left: 50%; width: 2px; height: 80%; background: currentColor; transform: translateX(-50%); }
         #crosshair::after { content: ''; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: currentColor; transform: translateY(-50%); }
         
-        #readout { position: absolute; top: 30px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; text-align: center; width: 85%; border: 1px solid #333; }
-        #status-text { font-weight: bold; font-size: 1.1em; color: #ff4757; margin-bottom: 4px; }
+        /* Top Readout Board */
+        #readout { position: absolute; top: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 15px; text-align: center; width: 80%; border: 1px solid #444; }
+        #status-text { font-weight: bold; font-size: 1em; color: #ff4757; margin-bottom: 5px; text-transform: uppercase; }
 
-        #controls { position: absolute; bottom: 30px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: auto; }
-        
-        .settings-bar { display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 15px; width: 85%; align-items: center; }
-        .input-row { display: flex; gap: 15px; font-size: 13px; align-items: center; }
-        
-        input[type="number"] { width: 40px; background: transparent; color: #2ecc71; border: none; font-weight: bold; border-bottom: 1px solid #2ecc71; text-align: center; outline: none; }
-        
-        button { padding: 18px; border-radius: 40px; border: none; color: white; font-weight: bold; font-size: 18px; width: 85%; cursor: pointer; transition: 0.3s; }
-        .btn-measure { background: #2ecc71; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); }
-        .btn-reset { background: #e67e22; }
-        button:disabled { background: #444 !important; opacity: 0.5; color: #888; box-shadow: none; }
-        
-        .small-btn { color: #888; font-size: 11px; text-decoration: underline; background: none; border: none; cursor: pointer; }
+        /* Floating Action Button (FAB) */
+        #main-btn { 
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            width: 90px; height: 90px; border-radius: 50%; border: none;
+            color: white; font-weight: bold; font-size: 14px; cursor: pointer;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 100; pointer-events: auto;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            line-height: 1.2; transition: 0.3s;
+        }
+        .btn-start { background: #3498db; }
+        .btn-measure { background: #2ecc71; }
+        .btn-reset { background: #e67e22; width: 80px !important; height: 80px !important; font-size: 12px !important; }
+        #main-btn:disabled { background: #444 !important; opacity: 0.4; }
+
+        /* Bottom Settings */
+        #settings { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: auto; }
+        .settings-bar { background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; display: flex; gap: 15px; align-items: center; font-size: 14px; }
+        input[type="number"] { width: 45px; background: transparent; color: #2ecc71; border: none; border-bottom: 2px solid #2ecc71; text-align: center; font-size: 16px; outline: none; }
     </style>
 </head>
 <body>
@@ -46,34 +53,27 @@
         <div id="readout">
             <div id="status-text">Ready</div>
             <div id="height-res" style="font-size: 2.2em; font-weight: bold; color: #2ecc71;">-- m</div>
-            <div id="info-res" style="font-size: 0.9em; opacity: 0.7;">Select Lens & Start</div>
+            <div id="info-res" style="font-size: 0.9em; opacity: 0.8;">Stand back and start camera</div>
         </div>
 
         <div id="crosshair"></div>
 
-        <div id="controls">
+        <button id="main-btn" class="btn-start">START<br>CAMERA</button>
+
+        <div id="settings">
             <div class="settings-bar">
-                <div class="input-row">
-                    <label>Eye Ht: <input type="number" id="eye-height" value="1.6" step="0.1">m</label>
-                    <label><input type="checkbox" id="high-accuracy" checked> High Accuracy</label>
-                </div>
-                <div style="display: flex; gap: 20px;">
-                    <button id="calib-btn" class="small-btn" onclick="calibrate()">Calibrate Vertical</button>
-                    <button id="lens-btn" class="small-btn" onclick="toggleLens()">Switch Lens (Wide)</button>
-                </div>
+                <label>Eye Ht (m): <input type="number" id="eye-height" value="1.6" step="0.1"></label>
+                <label><input type="checkbox" id="high-accuracy" checked> Strict Level</label>
             </div>
-            
-            <button id="main-btn" class="btn-measure">START CAMERA</button>
         </div>
     </div>
 </div>
 
 <script>
-    let step = 0; 
+    let step = 0; // 0: Start, 1: Base, 2: Top, 3: Result
     let angleBase = 0, angleTop = 0;
-    let smoothedPitch = 0, smoothedRoll = 0, offset = 0;
-    const filter = 0.12;
-    let useWide = false;
+    let smoothedPitch = 0, smoothedRoll = 0;
+    const filter = 0.15; // Smooths the jumpiness
 
     const video = document.getElementById('video');
     const mainBtn = document.getElementById('main-btn');
@@ -83,33 +83,17 @@
     const crosshair = document.getElementById('crosshair');
     const highAccCheck = document.getElementById('high-accuracy');
 
-    async function toggleLens() {
-        useWide = !useWide;
-        document.getElementById('lens-btn').innerText = useWide ? "Using Wide Lens" : "Using Standard Lens";
-        if (video.srcObject) startApp(); // Restart stream with new lens
-    }
-
     async function startApp() {
         try {
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
-            }
-
-            // Attempt to find the Ultra Wide lens
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices.filter(device => device.kind === 'videoinput');
+            // Force back camera (environment)
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: { exact: "environment" } }, 
+                audio: false 
+            }).catch(() => {
+                // Fallback if 'exact' environment fails on some browsers
+                return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            });
             
-            // On many phones, the last camera in the list is the wide/ultra-wide lens
-            const selectedCamera = useWide && cameras.length > 1 ? cameras[cameras.length - 1] : cameras[0];
-
-            const constraints = {
-                video: {
-                    deviceId: selectedCamera.deviceId ? { exact: selectedCamera.deviceId } : undefined,
-                    facingMode: 'environment'
-                }
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
 
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -120,7 +104,7 @@
             }
             step = 1;
             updateUI();
-        } catch (err) { alert("Camera Error: " + err.message); }
+        } catch (err) { alert("Camera access denied. Please enable in settings."); }
     }
 
     function handleOrientation(e) {
@@ -133,14 +117,12 @@
         if (isLevel) {
             crosshair.style.borderColor = "#2ecc71";
             crosshair.style.color = "#2ecc71";
-            statusText.style.color = "#2ecc71";
-            if (step === 1) statusText.innerText = "Level - Aim at BOTTOM";
-            if (step === 2) statusText.innerText = "Level - Aim at TOP";
+            if (step === 1) statusText.innerText = "Level - Mark Bottom";
+            if (step === 2) statusText.innerText = "Level - Mark Peak";
         } else {
             crosshair.style.borderColor = "#ff4757";
             crosshair.style.color = "#ff4757";
-            statusText.style.color = "#ff4757";
-            statusText.innerText = "Level Phone Side-to-Side";
+            statusText.innerText = "Tilt to Level";
         }
 
         if (step === 1 || step === 2) {
@@ -148,52 +130,60 @@
         }
     }
 
-    function calibrate() {
-        offset = smoothedPitch - 90;
-        alert("Vertical calibrated.");
-    }
-
     function updateUI() {
-        if (step === 1) { mainBtn.innerText = "MARK BASE"; mainBtn.className = "btn-measure"; }
-        else if (step === 2) { mainBtn.innerText = "MARK TOP"; mainBtn.className = "btn-measure"; }
-        else if (step === 3) { mainBtn.innerText = "RESET"; mainBtn.className = "btn-reset"; mainBtn.disabled = false; }
+        if (step === 1) {
+            mainBtn.innerHTML = "MARK<br>BASE";
+            mainBtn.className = "btn-measure";
+        } else if (step === 2) {
+            mainBtn.innerHTML = "MARK<br>TOP";
+            mainBtn.className = "btn-measure";
+        } else if (step === 3) {
+            mainBtn.innerHTML = "NEW<br>TREE";
+            mainBtn.className = "btn-reset";
+            mainBtn.disabled = false;
+        }
     }
 
     mainBtn.addEventListener('click', () => {
         if (step === 0) return startApp();
-        let activePitch = smoothedPitch - offset;
 
         if (step === 1) {
-            angleBase = activePitch;
+            angleBase = smoothedPitch;
             step = 2;
-            infoRes.innerText = "Base marked. Aim at top.";
+            infoRes.innerText = "Base set. Aim at tree top.";
         } else if (step === 2) {
-            angleTop = activePitch;
+            angleTop = smoothedPitch;
             calculateHeight();
             step = 3;
         } else if (step === 3) {
             step = 1;
             heightRes.innerText = "-- m";
-            infoRes.innerText = "New Measurement";
+            infoRes.innerText = "Ready for new measurement.";
+            statusText.innerText = "Level - Mark Bottom";
         }
         updateUI();
     });
 
     function calculateHeight() {
         const h_eye = parseFloat(document.getElementById('eye-height').value);
+        
+        // Math using beta (90 is vertical upright)
+        // radBase: Angle from horizon down to floor
         const radBase = (90 - angleBase) * (Math.PI / 180);
+        // radTop: Angle from horizon up to peak
         const radTop = (angleTop - 90) * (Math.PI / 180);
 
         const distance = h_eye / Math.tan(radBase);
         const h_above = distance * Math.tan(radTop);
         const total = h_eye + h_above;
 
-        if (distance < 0 || !isFinite(total)) {
+        if (distance < 0 || isNaN(total) || !isFinite(total)) {
             heightRes.innerText = "Error";
-            infoRes.innerText = "Try standing further back.";
+            infoRes.innerText = "Stand further back & keep phone upright.";
         } else {
             heightRes.innerText = total.toFixed(2) + " m";
             infoRes.innerText = "Distance: " + distance.toFixed(1) + "m";
+            statusText.innerText = "Done";
         }
     }
 </script>
