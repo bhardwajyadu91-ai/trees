@@ -3,35 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight Pro Final</title>
+    <title>TreeHeight Pro - Fixed Horizon</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { margin: 0; font-family: -apple-system, sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
+        body { margin: 0; font-family: sans-serif; background: #000; color: white; overflow: hidden; touch-action: none; }
         #capture-area { position: relative; width: 100vw; height: 100vh; }
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        
-        #readout { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 12px; border-radius: 15px; text-align: center; width: 85%; border: 1px solid #444; pointer-events: auto; }
-        #height-res { font-size: 2.5em; font-weight: bold; color: #2ecc71; margin: 2px 0; }
-        
+        #readout { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); padding: 12px; border-radius: 15px; text-align: center; width: 85%; border: 1px solid #444; pointer-events: auto; }
+        #height-res { font-size: 2.2em; font-weight: bold; color: #2ecc71; }
         #center-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
         #crosshair { width: 60px; height: 60px; border: 2px solid #ff4757; border-radius: 50%; position: relative; color: #ff4757; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: currentColor; }
         #crosshair::before { top: 20%; left: 50%; width: 2px; height: 60%; transform: translateX(-50%); }
         #crosshair::after { top: 50%; left: 20%; width: 60%; height: 2px; transform: translateY(-50%); }
-        
-        #settings-panel { position: absolute; bottom: 100px; left: 15px; width: 60%; background: rgba(30, 30, 30, 0.9); padding: 12px; border-radius: 20px; border: 1px solid #555; pointer-events: auto; }
-        .row { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
+        #settings-panel { position: absolute; bottom: 110px; left: 15px; width: 62%; background: rgba(25, 25, 25, 0.95); padding: 12px; border-radius: 20px; border: 1px solid #555; pointer-events: auto; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 5px; }
         .group { display: flex; flex-direction: column; align-items: center; flex: 1; }
-        .group span { font-size: 8px; text-transform: uppercase; opacity: 0.7; margin-bottom: 2px; }
+        .group span { font-size: 8px; text-transform: uppercase; opacity: 0.7; }
         input { background: rgba(255,255,255,0.1); border: none; border-radius: 5px; color: #2ecc71; font-weight: bold; text-align: center; font-size: 16px; width: 100%; padding: 4px 0; outline: none; }
-        
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-        .small-btn { background: #444; padding: 8px 4px; border-radius: 8px; font-size: 9px; border: none; color: white; cursor: pointer; font-weight: bold; }
-        .active-toggle { background: #2ecc71; color: black; }
-
-        #main-btn { position: absolute; bottom: 100px; right: 20px; width: 90px; height: 90px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); color: white; font-weight: bold; font-size: 15px; cursor: pointer; pointer-events: auto; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .small-btn { background: #444; padding: 10px 4px; border-radius: 8px; font-size: 9px; border: none; color: white; cursor: pointer; font-weight: bold; }
+        #main-btn { position: absolute; bottom: 110px; right: 20px; width: 90px; height: 90px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); color: white; font-weight: bold; font-size: 14px; cursor: pointer; pointer-events: auto; display: flex; align-items: center; justify-content: center; text-align: center; }
         .btn-measure { background: #2ecc71; }
         .btn-reset { background: #e67e22; }
     </style>
@@ -41,97 +35,84 @@
 <div id="capture-area">
     <video id="video" autoplay playsinline></video>
     <canvas id="overlay"></canvas>
-    
     <div id="hud">
         <div id="readout">
-            <input type="text" id="species" placeholder="Tap to name tree..." style="background:none; border:none; color:#bbb; width:100%; font-size:12px; text-align:center;">
+            <input type="text" id="species" placeholder="Tree Name..." style="background:none; border:none; color:#bbb; width:100%; text-align:center;">
             <div id="height-res">-- m</div>
-            <div id="info-res" style="font-size: 10px; opacity: 0.6;">Align Triangle + Crosshair for 0°</div>
+            <div id="info-res" style="font-size: 10px; opacity: 0.6;">Hold Phone Level & Tap Start</div>
         </div>
-
         <div id="center-ui"><div id="crosshair"></div></div>
-        
         <div id="settings-panel">
-            <div class="row" style="margin-bottom:12px;">
-                <button id="toggle-steps" class="small-btn active-toggle" style="flex:1" onclick="useDistMode('steps')">STEPS</button>
-                <button id="toggle-meters" class="small-btn" style="flex:1" onclick="useDistMode('meters')">METERS</button>
-            </div>
             <div class="row">
-                <div class="group"><span id="dist-label">Steps</span><input type="number" id="dist-input" value="15"></div>
+                <div class="group"><span>Dist (m)</span><input type="number" id="manual-dist" value="10"></div>
                 <div class="group"><span>Slope°</span><input type="number" id="ground-angle" value="0"></div>
-                <div class="group" id="pace-group"><span>Pace</span><input type="number" id="pace-val" value="0.75"></div>
             </div>
             <div class="btn-grid">
                 <button class="small-btn" onclick="setFlat()">FLAT (0°)</button>
                 <button class="small-btn" onclick="snapSlope()">SNAP SLOPE</button>
-                <button class="small-btn" onclick="saveImage()" style="background:#2980b9; grid-column: span 2;">📸 SAVE PHOTO</button>
+                <button class="small-btn" style="grid-column: span 2; background:#8e44ad;" onclick="reZero()">RE-ZERO HORIZON</button>
+                <button class="small-btn" style="grid-column: span 2; background:#2980b9;" onclick="saveImage()">📸 SAVE PHOTO</button>
             </div>
         </div>
-
         <button id="main-btn" class="btn-measure" onclick="handleMainAction()">START</button>
     </div>
 </div>
 
 <script>
-    let step = 0, offset = 0, smoothedPitch = 90, smoothedRoll = 0, distMode = 'steps';
+    let step = 0, offset = 0, smoothedPitch = 0, filter = 0.15;
     const video = document.getElementById('video'), canvas = document.getElementById('overlay'), ctx = canvas.getContext('2d'), mainBtn = document.getElementById('main-btn');
-
-    function useDistMode(mode) {
-        distMode = mode;
-        document.getElementById('toggle-steps').classList.toggle('active-toggle', mode === 'steps');
-        document.getElementById('toggle-meters').classList.toggle('active-toggle', mode === 'meters');
-        document.getElementById('dist-label').innerText = mode === 'steps' ? 'Steps' : 'Meters';
-        document.getElementById('pace-group').style.opacity = mode === 'steps' ? '1' : '0.3';
-    }
 
     async function startApp() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             video.srcObject = stream;
             window.addEventListener('deviceorientation', (e) => {
-                smoothedPitch = (e.beta * 0.15) + (smoothedPitch * 0.85);
-                smoothedRoll = (e.gamma * 0.15) + (smoothedRoll * 0.85);
-                document.getElementById('crosshair').style.borderColor = Math.abs(smoothedRoll) < 5 ? "#2ecc71" : "#ff4757";
+                // Using beta (tilt forward/back)
+                smoothedPitch = (e.beta * filter) + (smoothedPitch * (1 - filter));
+                const roll = e.gamma;
+                document.getElementById('crosshair').style.borderColor = Math.abs(roll) < 5 ? "#2ecc71" : "#ff4757";
             });
+            // Auto-zero on start
+            setTimeout(() => { reZero(); }, 500);
             step = 1; updateUI();
             requestAnimationFrame(drawLoop);
         } catch (err) { alert("Enable Sensors/Camera"); }
     }
 
+    function reZero() {
+        offset = smoothedPitch; // Sets current angle as the new 0
+        console.log("Horizon Re-Zeroed at: " + offset);
+    }
+
     function drawLoop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const horizonDiff = (smoothedPitch - offset) - 90; 
-        const horizonY = (canvas.height / 2) + ((horizonDiff / 50) * canvas.height);
+        // Calculate diff from the saved 0-point
+        const horizonDiff = smoothedPitch - offset; 
+        // Sensitivity adjustment: 40 degrees of tilt fills the screen
+        const horizonY = (canvas.height / 2) + ((horizonDiff / 40) * canvas.height);
         const isCentered = Math.abs(horizonDiff) < 1.0;
 
         if (step >= 1) {
-            ctx.fillStyle = isCentered ? "#f1c40f" : "rgba(52, 152, 219, 0.9)";
-            if (isCentered && window.navigator.vibrate) window.navigator.vibrate(10);
+            ctx.fillStyle = isCentered ? "#f1c40f" : "#3498db";
             ctx.beginPath(); ctx.moveTo(canvas.width/2, horizonY);
             ctx.lineTo(canvas.width/2-20, horizonY+25); ctx.lineTo(canvas.width/2+20, horizonY+25);
             ctx.fill();
-            if(isCentered) {
-                ctx.strokeStyle = "#f1c40f"; ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width/2-30, canvas.height/2-30, 60, 60);
-            }
         }
         requestAnimationFrame(drawLoop);
     }
 
     function setFlat() { document.getElementById('ground-angle').value = 0; }
-    function snapSlope() { document.getElementById('ground-angle').value = Math.abs(90 - smoothedPitch).toFixed(1); }
+    function snapSlope() { document.getElementById('ground-angle').value = Math.abs(smoothedPitch - offset).toFixed(1); }
 
     function handleMainAction() {
         if (step === 0) startApp();
         else if (step === 1) {
-            const val = parseFloat(document.getElementById('dist-input').value);
-            const pace = parseFloat(document.getElementById('pace-val').value);
-            const walkedDist = distMode === 'steps' ? (val * pace) : val;
+            const dist = parseFloat(document.getElementById('manual-dist').value);
             const g = parseFloat(document.getElementById('ground-angle').value) * (Math.PI / 180);
-            const hDist = walkedDist * Math.cos(g);
-            const height = (hDist * Math.tan((smoothedPitch - offset - 90) * (Math.PI / 180))) + 1.6;
+            const hDist = dist * Math.cos(g);
+            const angleFromHorizon = Math.abs(smoothedPitch - offset);
+            const height = (hDist * Math.tan(angleFromHorizon * (Math.PI / 180))) + 1.6;
             document.getElementById('height-res').innerText = height.toFixed(2) + " m";
-            document.getElementById('info-res').innerText = `H-Dist: ${hDist.toFixed(1)}m`;
             step = 2;
         } else { step = 1; document.getElementById('height-res').innerText = "-- m"; }
         updateUI();
@@ -147,6 +128,7 @@
     function updateUI() {
         mainBtn.innerHTML = (step === 1) ? "MARK<br>TOP" : "RESET";
         mainBtn.className = (step === 1) ? "btn-measure" : "btn-reset";
+        document.getElementById('info-res').innerText = (step === 1) ? "Align Triangle inside Crosshair" : "Result Saved";
     }
 </script>
 </body>
