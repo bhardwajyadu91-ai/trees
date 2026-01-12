@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TreeHeight Pro - Floating UI</title>
+    <title>TreeHeight Pro - Samsung Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { margin: 0; background: #000; font-family: sans-serif; overflow: hidden; touch-action: none; }
@@ -11,30 +11,66 @@
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
         
-        /* FLOATING ACTION BUTTONS (Right Side) */
-        .fab-container { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 20px; pointer-events: auto; }
-        .fab { width: 80px; height: 80px; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; }
-        .fab-blue { background: rgba(52, 152, 219, 0.85); border: 2px solid #fff; }
-        .fab-green { background: rgba(46, 204, 113, 0.85); border: 2px solid #fff; }
+        /* RIGHT ACTION RAIL - Ensures buttons are always visible */
+        .action-rail { 
+            position: absolute; 
+            right: 0; 
+            top: 0; 
+            width: 100px; 
+            height: 100%; 
+            background: rgba(0,0,0,0.3); 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 40px; 
+            z-index: 2000;
+        }
+        .fab { 
+            width: 80px; 
+            height: 80px; 
+            border-radius: 50%; 
+            border: 3px solid #fff; 
+            color: white; 
+            font-weight: bold; 
+            font-size: 11px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .fab-blue { background: #3498db; }
+        .fab-green { background: #2ecc71; }
 
-        /* HIDEABLE SIDEBAR (Left Side) */
-        #sidebar { position: absolute; left: -260px; top: 0; width: 250px; height: 100%; background: rgba(0,0,0,0.9); transition: 0.3s; padding: 20px; box-sizing: border-box; z-index: 1000; pointer-events: auto; border-right: 1px solid #444; }
+        /* SIDEBAR SETTINGS */
+        #sidebar { 
+            position: absolute; 
+            left: -260px; 
+            top: 0; 
+            width: 250px; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            transition: 0.3s; 
+            padding: 20px; 
+            z-index: 3000; 
+            border-right: 1px solid #444; 
+        }
         #sidebar.open { left: 0; }
-        .menu-toggle { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.6); color: white; border: 1px solid #fff; padding: 10px; border-radius: 5px; pointer-events: auto; z-index: 1001; }
+        .menu-toggle { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.7); color: white; border: 1px solid #fff; padding: 12px; border-radius: 5px; z-index: 3001; }
 
         /* CROSSHAIR */
-        #center-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 100; }
-        .ch-ring { width: 60px; height: 60px; border: 2px solid rgba(255, 71, 87, 0.6); border-radius: 50%; position: relative; }
-        .plus-v { position: absolute; top: 50%; left: 50%; width: 2px; height: 20px; background: #ff4757; transform: translate(-50%, -50%); }
-        .plus-h { position: absolute; top: 50%; left: 50%; width: 20px; height: 2px; background: #ff4757; transform: translate(-50%, -50%); }
+        #center-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .ch-ring { width: 70px; height: 70px; border: 3px solid #ff4757; border-radius: 50%; position: relative; }
+        .plus-v { position: absolute; top: 20%; left: 50%; width: 2px; height: 60%; background: #ff4757; transform: translateX(-50%); }
+        .plus-h { position: absolute; top: 50%; left: 20%; width: 60%; height: 2px; background: #ff4757; transform: translateY(-50%); }
 
-        /* HUD */
+        /* READOUT */
         #readout { position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; }
         #height-res { font-size: 3.5em; font-weight: bold; color: #2ecc71; text-shadow: 2px 2px 10px #000; }
         
-        .input-group { margin-bottom: 20px; }
-        .input-group label { display: block; font-size: 10px; color: #aaa; margin-bottom: 5px; text-transform: uppercase; }
-        input { width: 100%; background: #222; border: 1px solid #2ecc71; color: #2ecc71; padding: 10px; border-radius: 5px; font-size: 18px; text-align: center; }
+        input { width: 100%; background: #222; border: 1px solid #2ecc71; color: #2ecc71; padding: 12px; border-radius: 8px; font-size: 20px; text-align: center; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -46,17 +82,15 @@
     <button class="menu-toggle" onclick="toggleSidebar()">☰ SETTINGS</button>
 
     <div id="sidebar">
-        <h3 style="color:#2ecc71; margin-top:40px;">Forestry Settings</h3>
-        <div class="input-group">
-            <label>Distance (m)</label>
-            <input type="number" id="dist" value="10">
-        </div>
-        <div class="input-group">
-            <label>Slope Angle°</label>
-            <input type="number" id="slope" value="0">
-        </div>
-        <button class="menu-toggle" style="position:static; width:100%;" onclick="saveImage()">📸 SAVE REPORT</button>
-        <button class="menu-toggle" style="position:static; width:100%; margin-top:10px; background:#c0392b;" onclick="location.reload()">RESET ALL</button>
+        <h3 style="color:#2ecc71; margin-top:50px;">Forestry Settings</h3>
+        <label style="font-size:10px; color:#aaa;">DISTANCE (m)</label>
+        <input type="number" id="dist" value="10">
+        
+        <label style="font-size:10px; color:#aaa;">SLOPE°</label>
+        <input type="number" id="slope" value="0">
+        
+        <button style="width:100%; padding:15px; background:#444; color:white; border:none; border-radius:8px;" onclick="saveImage()">📸 SAVE PHOTO</button>
+        <button style="width:100%; padding:15px; margin-top:10px; background:#c0392b; color:white; border:none; border-radius:8px;" onclick="location.reload()">RESET ALL</button>
     </div>
 
     <div id="center-ui">
@@ -70,9 +104,9 @@
         <div id="height-res">-- m</div>
     </div>
 
-    <div class="fab-container">
-        <button class="fab fab-blue" onclick="dropStake()">SET<br>HORIZON</button>
-        <button class="fab fab-green" onclick="measure()">MARK<br>TOP</button>
+    <div class="action-rail">
+        <div class="fab fab-blue" onclick="dropStake()">SET<br>HORIZON</div>
+        <div class="fab fab-green" onclick="measure()">MARK<br>TOP</div>
     </div>
 </div>
 
@@ -81,13 +115,16 @@
     const video = document.getElementById('video'), canvas = document.getElementById('overlay'), ctx = canvas.getContext('2d');
 
     async function init() {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        video.srcObject = stream;
-        window.addEventListener('deviceorientation', (e) => {
-            curPitch = e.beta; 
-            document.getElementById('ch-box').style.borderColor = Math.abs(e.gamma) < 6 ? "#2ecc71" : "#ff4757";
-        }, true);
-        requestAnimationFrame(draw);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            window.addEventListener('deviceorientation', (e) => {
+                curPitch = e.beta; // The main tilt sensor
+                // Crosshair turns green when the phone is held straight (level)
+                document.getElementById('ch-box').style.borderColor = Math.abs(e.gamma) < 6 ? "#2ecc71" : "#ff4757";
+            }, true);
+            requestAnimationFrame(draw);
+        } catch (e) { alert("Enable Camera and Motion Sensors"); }
     }
 
     function toggleSidebar() {
@@ -95,18 +132,21 @@
     }
 
     function dropStake() {
+        // Zeroing: This sets the blue square to the EXACT center of your screen
         stakePitch = curPitch;
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (stakePitch !== null) {
+            // Difference math ensures it starts at the center crosshair
             const diff = curPitch - stakePitch;
-            const yPos = (canvas.height / 2) + (diff * 25);
+            const yPos = (canvas.height / 2) + (diff * 22);
             
             ctx.strokeStyle = "#3498db";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(canvas.width/2 - 20, yPos - 20, 40, 40);
+            ctx.lineWidth = 4;
+            // The blue "Virtual Stake"
+            ctx.strokeRect(canvas.width/2 - 25, yPos - 25, 50, 50);
             
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
@@ -128,12 +168,12 @@
     }
 
     function saveImage() {
-        toggleSidebar(); // Hide sidebar before screenshot
+        document.getElementById('sidebar').classList.remove('open');
         setTimeout(() => {
             html2canvas(document.querySelector("#capture-area")).then(c => {
                 let a = document.createElement('a'); a.download = 'Tree_Survey.png'; a.href = c.toDataURL(); a.click();
             });
-        }, 500);
+        }, 300);
     }
 
     init();
